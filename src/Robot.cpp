@@ -25,7 +25,9 @@ class Robot: public SampleRobot
 	Solenoid shifter;
 	BuiltInAccelerometer roboRIO;
 
-
+float oldMotorValueMove;
+float oldMotorValueRotate;
+int loopcounter;
 
 
 public:
@@ -47,6 +49,9 @@ public:
 		hands.Set(0);
 		arms.Set(0);
 		shifter.Set(0);
+		oldMotorValueMove=0;
+		oldMotorValueRotate=0;
+		loopcounter=0;
 	}
 
 	/**
@@ -64,10 +69,67 @@ public:
 		float xAxisMax = 0;
 		float xAxisMin = 0;
 
-
 		while (IsOperatorControl() && IsEnabled())
 		{
-			myRobot.ArcadeDrive(driverJoystick.GetRawAxis(1), driverJoystick.GetRawAxis(4)); // drive with arcade style (use right stick)
+
+			float newMotorValueMove=driverJoystick.GetRawAxis(1);
+			float newMotorValueRotate=driverJoystick.GetRawAxis(4);
+
+
+			loopcounter += 1;
+			if (loopcounter >= 3) {
+
+
+				float limiter=.05;
+
+				if(newMotorValueMove>oldMotorValueMove) //trying to move forward
+				{
+					if (newMotorValueMove-oldMotorValueMove>limiter)
+					{
+						newMotorValueMove=oldMotorValueMove+limiter; //moving forward no more than 10
+					}
+
+				}
+				else if (newMotorValueMove<oldMotorValueMove) {
+					if (oldMotorValueMove-newMotorValueMove>limiter)
+					{
+						newMotorValueMove=oldMotorValueMove-limiter;
+					}
+				}
+
+				if (newMotorValueRotate>oldMotorValueRotate)
+				{
+					if (newMotorValueRotate-oldMotorValueRotate>limiter)
+					{
+						newMotorValueRotate=oldMotorValueRotate+limiter;
+					}
+				}
+				else if (newMotorValueRotate<oldMotorValueRotate){
+					if (oldMotorValueRotate-newMotorValueRotate>limiter)
+					{
+						newMotorValueRotate=oldMotorValueRotate-limiter;
+					}
+				}
+				loopcounter = 0; //resetting loopcounter
+				oldMotorValueMove=newMotorValueMove; //saving new value to compare for next time
+				oldMotorValueRotate=newMotorValueRotate;
+			}
+
+			if(0 == driverJoystick.GetRawAxis(1))
+			{
+				oldMotorValueMove= 0;
+				newMotorValueMove=0;
+			}
+			if(0 == driverJoystick.GetRawAxis(4))
+			{
+				oldMotorValueRotate=0;
+				newMotorValueRotate=0;
+			}
+
+
+
+
+			myRobot.ArcadeDrive(oldMotorValueMove, oldMotorValueRotate); // drive with arcade style (use right stick)
 			hands.Set(driverJoystick.GetRawButton(1));
 			shifter.Set(driverJoystick.GetRawButton(6));
 
@@ -86,39 +148,41 @@ public:
 			}
 
 			arms.Set(armState);
-
-			xAxis = roboRIO.GetX();
-			yAxis = roboRIO.GetY();
-			zAxis = roboRIO.GetZ();
-
-			if(xAxis>=xAxisMax)
-			{
-				xAxisMax = xAxis;
-			}
-			if(xAxis<=xAxisMax)
-			{
-				xAxisMin = xAxis;
-			}
-
-			if(xAxisMax >= !xAxisMin)
-			{
-				xAxisScaler = (1/xAxisMax) ;
-			}
-			else
-			{
-				xAxisScaler = (1/!xAxisMin);
-			}
+//
+//			xAxis = roboRIO.GetX();
+//			yAxis = roboRIO.GetY();
+//			zAxis = roboRIO.GetZ();
+//
+//			if(xAxis>=xAxisMax)
+//			{
+//				xAxisMax = xAxis;
+//			}
+//			if(xAxis<=xAxisMax)
+//			{
+//				xAxisMin = xAxis;
+//			}
+//
+//			if(xAxisMax >= !xAxisMin)
+//			{
+//				xAxisScaler = (1/xAxisMax) ;
+//			}
+//			else
+//			{
+//				xAxisScaler = (1/!xAxisMin);
+//			}
 
 			//test.Set((xAxisScaler*xAxis));
 
 			//cout<<"X Axis"<<xAxis<<"    Y Axis"<<yAxis<<"      Z Axis"<<zAxis<<endl;
 			//printf("test");
 
+			SmartDashboard::PutNumber("Fwd/Rev MotorOutput", oldMotorValueMove);
+			SmartDashboard::PutNumber("Rotate MotorOutput", oldMotorValueRotate);
 			SmartDashboard::PutNumber("X Axis", xAxis);
 			SmartDashboard::PutNumber("Y Axis", yAxis);
 			SmartDashboard::PutNumber("Z Axis", zAxis);
 
-			Wait(0.005);				// wait for a motor update time
+			Wait(0.01);				// wait for a motor update time
 		}
 	} //There once was a man named steven who enjoyed giving chris his "Jobs". Then connor came along and exclaimed to sir steven "Please! I would like to give chris one job of my own!" But when steven heard what mister connor has just said, he attacks. He took off his shirt, pulled the spray paint out of his shiny golden wagon which has the slightest bit of rust near the rear left wheel and starts to spray paint a star pattern onto his nipples. But when sir steven began to spray paint his left nipple, he ran out of paint. This infuriated sir steven, which made mister connor laugh. Then Sir Steven noticed something out of the corner of his eye and screamed for his life, "Oh my good god sir steven! The mighty Bryce Dragon, the fattest, most dick of a dragon of all!" Sir Steven unsheathed his sword and pointed the beautifully crafted piece of craftsmanship to the sky in the direction of the obese dragon. The Bryce Dragon then proceded to attack the gay couple. But when the 900,000 pound dragon swooped in to pick up Sir Steven with his sharp talons, he forgot sir steven's sword was still raised in the air! Sir Steven accidently sliced the belly of the obese dragon! The dragon whispered near death to the couple, "I did not mean to frighten thou steven, but you have killed me. Please complete my task in life and kill the faggot Jonas. He doesn't deserve to live, nor eat the food of the Obese Dragon!" The dragon then died in vein. The couple, determined to make it up to the dead dragon, then made a 36 hour quest, making frequent stops to kiss, to the cave of the flaming faggot. When they were outside of the cave, Sir Steven yelled out of pain, "Holy Cats mister Connor! This cave smells like rotten mutton chops blended in ass!" They proceded to enter the cave and meet the faggot Jonas. "FEAR ME YOUNG COUPLE! I HAVE THE POWERS OF SMELLY PEANUT BUTTER AND BG ON MY SIDE" The faggot shouted. Mister Connor then said, "But velocity is represented by a 'v'" The faggot died. The ghost of the obese dragon appeared and said to the couple "Thanks you gay guys, you killed him. I shall give you the keys to my buick. I bid you good day. Stay gay. Horses go 'Nay'" FIN."-Chris
 };
