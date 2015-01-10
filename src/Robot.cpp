@@ -1,4 +1,5 @@
 #include "WPILib.h"
+#include "math.h"
 using namespace std;
 
 /**
@@ -60,14 +61,20 @@ public:
 		float xAxis;
 		float yAxis;
 		float zAxis;
-		float xAxisScaler = 0;
-		float xAxisMax = 0;
-		float xAxisMin = 0;
+		float fwdZComp;
+		float fwdXComp;
+		float fwdAccel;
+		float driveFront;
+		float driveTurn;
+		float driveFrontAdj;
+		float jerkConst = .2;
+		float jerk;
+		float jerkCheck;
 
 
 		while (IsOperatorControl() && IsEnabled())
 		{
-			myRobot.ArcadeDrive(driverJoystick.GetRawAxis(1), driverJoystick.GetRawAxis(4)); // drive with arcade style (use right stick)
+
 			hands.Set(driverJoystick.GetRawButton(1));
 			shifter.Set(driverJoystick.GetRawButton(6));
 
@@ -91,32 +98,28 @@ public:
 			yAxis = roboRIO.GetY();
 			zAxis = roboRIO.GetZ();
 
-			if(xAxis>=xAxisMax)
+			fwdXComp = cos(40) * xAxis;
+			fwdZComp = cos(50) * zAxis;
+			fwdAccel = fwdXComp + fwdXComp;
+			jerk = fwdAccel -jerkCheck;
+
+			driveFront = driverJoystick.GetRawAxis(1);
+			driveTurn = driverJoystick.GetRawAxis(4);
+
+			driveFrontAdj = ((driveFront * driveFront * driveFront) * (1 - (jerkConst * jerk)));
+
+			if(driverJoystick.GetRawButton(4))
 			{
-				xAxisMax = xAxis;
-			}
-			if(xAxis<=xAxisMax)
-			{
-				xAxisMin = xAxis;
+				driveFrontAdj = driverJoystick.GetRawAxis(1);
 			}
 
-			if(xAxisMax >= !xAxisMin)
-			{
-				xAxisScaler = (1/xAxisMax) ;
-			}
-			else
-			{
-				xAxisScaler = (1/!xAxisMin);
-			}
-
-			//test.Set((xAxisScaler*xAxis));
-
-			//cout<<"X Axis"<<xAxis<<"    Y Axis"<<yAxis<<"      Z Axis"<<zAxis<<endl;
-			//printf("test");
+			myRobot.ArcadeDrive(driveFrontAdj,driveTurn); // drive with arcade style (use right stick)
 
 			SmartDashboard::PutNumber("X Axis", xAxis);
 			SmartDashboard::PutNumber("Y Axis", yAxis);
 			SmartDashboard::PutNumber("Z Axis", zAxis);
+
+			jerkCheck = fwdAccel;
 
 			Wait(0.005);				// wait for a motor update time
 		}
