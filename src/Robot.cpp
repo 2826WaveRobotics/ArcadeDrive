@@ -14,38 +14,38 @@ using namespace std;
 class Robot: public SampleRobot
 {
 
-	CANTalon Zero;
+	CANTalon Zero;//Initializing SRXs for drive train use
 	CANTalon One;
 	CANTalon Two;
 	CANTalon Three;
 	RobotDrive myRobot; // robot drive system
-	Joystick driverJoystick; // only joystick
-	Solenoid hands;
-	Solenoid arms;
-	Solenoid shifter;
-	BuiltInAccelerometer roboRIO;
+	Joystick driverJoystick; // driver's XBox controller
+	Solenoid hands;//first stage of climbing mechanism
+	Solenoid arms;//solenoid used to engage the PTO for second stage of climb
+	Solenoid shifter;//duh
+	BuiltInAccelerometer roboRIO;//kinda also duh, but if you don't really know, the RoboRIO has a built in accelerometer. This is it
 
-float oldMotorValueMove;
-float oldMotorValueRotate;
-int loopcounter;
+	float oldMotorValueMove;//forward(or backward) value of the motors from the previous iteration of the code
+	float oldMotorValueRotate;//rotational value of the motors from the previous iteration of the code
+	int loopcounter;//counter used in our motor value comparing loop
 
 
 public:
 	Robot() :
-			Zero(0),
+			Zero(0),//initalizing everything to the proper USB, CAN, DI/O, or PWM channels
 			One(1),
 			Two(2),
 			Three(3),
-			myRobot(Zero, One, Two, Three),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
+			myRobot(Zero, One, Two, Three),	// initialize the RobotDrive to use the SRXs
 			driverJoystick(0),
 			hands(0),
 			arms(1),
 			shifter(2),
-			roboRIO()
+			roboRIO()//only one, so no initalizing needed
 
 
 	{
-		myRobot.SetExpiration(0.1);
+		myRobot.SetExpiration(0.1);//setting inital(and default) values for all of the systems
 		hands.Set(0);
 		arms.Set(0);
 		shifter.Set(0);
@@ -54,60 +54,59 @@ public:
 		loopcounter=0;
 	}
 
-	/**
-	 * Runs the motors with arcade steering.
-	 */
+
 	void OperatorControl()
 	{
-		bool armCheck = 0;
-		bool armPrevious = 0;
-		bool armState = 0;
-		float xAxis;
-		float yAxis;
-		float zAxis;
-		float xAxisScaler = 0;
-		float xAxisMax = 0;
-		float xAxisMin = 0;
+		//initalizing values used primarialy in Tele-Op
+		bool armCheck = 0;//value used to check to see if both nessicary buttons are pressed
+		bool armPrevious = 0;//value of armCheck set in previous iteration
+		bool armState = 0;//position of arm(engaged or not)
+		float xAxis;//acceleration(in g's) of the X Axis of the RoboRIO's onboard accelerometer
+		float yAxis;//acceleration(in g's) of the Y Axis of the RoboRIO's onboard accelerometer
+		float zAxis;//acceleration(in g's) of the Z Axis of the RoboRIO's onboard accelerometer
+
 
 		while (IsOperatorControl() && IsEnabled())
 		{
 
-			float newMotorValueMove=driverJoystick.GetRawAxis(1);
-			float newMotorValueRotate=driverJoystick.GetRawAxis(4);
+			float newMotorValueMove=driverJoystick.GetRawAxis(1);//Makes it go forward
+			float newMotorValueRotate=driverJoystick.GetRawAxis(4);// Rotates the robot
 
 
-			loopcounter += 1;
+			loopcounter += 1;// This loop changes the speed
 			if (loopcounter >= 3) {
 
 
-				float limiter=.05;
+				float limiter=.05;// Maximum change in speed
 
 				if(newMotorValueMove>oldMotorValueMove) //trying to move forward
 				{
-					if (newMotorValueMove-oldMotorValueMove>limiter)
+					if (newMotorValueMove-oldMotorValueMove>limiter)// Change higher then the limiter
 					{
-						newMotorValueMove=oldMotorValueMove+limiter; //moving forward no more than 10
+						newMotorValueMove=oldMotorValueMove+limiter; //set change to limit
 					}
 
 				}
-				else if (newMotorValueMove<oldMotorValueMove) {
-					if (oldMotorValueMove-newMotorValueMove>limiter)
-					{
-						newMotorValueMove=oldMotorValueMove-limiter;
-					}
-				}
-
-				if (newMotorValueRotate>oldMotorValueRotate)
+				else if (newMotorValueMove<oldMotorValueMove) //Trying to slow down
 				{
-					if (newMotorValueRotate-oldMotorValueRotate>limiter)
+					if (oldMotorValueMove-newMotorValueMove>limiter)//Change greater then limiter
 					{
-						newMotorValueRotate=oldMotorValueRotate+limiter;
+						newMotorValueMove=oldMotorValueMove-limiter;//Set change to limiter
 					}
 				}
-				else if (newMotorValueRotate<oldMotorValueRotate){
-					if (oldMotorValueRotate-newMotorValueRotate>limiter)
+
+				if (newMotorValueRotate>oldMotorValueRotate)//Trying to rotate
+				{
+					if (newMotorValueRotate-oldMotorValueRotate>limiter)//Change greater then limiter
 					{
-						newMotorValueRotate=oldMotorValueRotate-limiter;
+						newMotorValueRotate=oldMotorValueRotate+limiter;//Set change to limiter
+					}
+				}
+				else if (newMotorValueRotate<oldMotorValueRotate)//Trying to rotate
+				{
+					if (oldMotorValueRotate-newMotorValueRotate>limiter)//Change greater then limiter
+					{
+						newMotorValueRotate=oldMotorValueRotate-limiter;//Set change to limiter
 					}
 				}
 				loopcounter = 0; //resetting loopcounter
@@ -115,14 +114,14 @@ public:
 				oldMotorValueRotate=newMotorValueRotate;
 			}
 
-			if(0 == driverJoystick.GetRawAxis(1))
+			if(0 == driverJoystick.GetRawAxis(1))//Drivers forward axis is 0
 			{
-				oldMotorValueMove= 0;
+				oldMotorValueMove= 0;//Set move value to 0
 				newMotorValueMove=0;
 			}
-			if(0 == driverJoystick.GetRawAxis(4))
+			if(0 == driverJoystick.GetRawAxis(4))//Drivers rotation axis is 0
 			{
-				oldMotorValueRotate=0;
+				oldMotorValueRotate=0;//Set move value to 0
 				newMotorValueRotate=0;
 			}
 
@@ -130,24 +129,24 @@ public:
 
 
 			myRobot.ArcadeDrive(oldMotorValueMove, oldMotorValueRotate); // drive with arcade style (use right stick)
-			hands.Set(driverJoystick.GetRawButton(1));
-			shifter.Set(driverJoystick.GetRawButton(6));
+			hands.Set(driverJoystick.GetRawButton(1));//Extend hands when button 1 is pressed
+			shifter.Set(driverJoystick.GetRawButton(6));//Shift when button 6 is pressed
 
-			if(driverJoystick.GetRawButton(5)&&driverJoystick.GetRawButton(3))
+			if(driverJoystick.GetRawButton(5)&&driverJoystick.GetRawButton(3))//Check if button 5 and 3 is pressed
 			{
-				armCheck = 1;
+				armCheck = 1;//Setting value to compare against
 			}
 			else
 			{
-				armCheck = 0;
+				armCheck = 0;//Setting value to compare against
 			}
 
-			if((armCheck == 1)&&(armCheck != armPrevious))
+			if((armCheck == 1)&&(armCheck != armPrevious))//Transition of arm press from not pressed to pressed
 			{
-				armState = ! armState;
+				armState = ! armState;//Change state of arm (In to out/out to in)
 			}
 
-			arms.Set(armState);
+			arms.Set(armState);//Engage or disengage the arms
 //
 //			xAxis = roboRIO.GetX();
 //			yAxis = roboRIO.GetY();
@@ -176,11 +175,11 @@ public:
 			//cout<<"X Axis"<<xAxis<<"    Y Axis"<<yAxis<<"      Z Axis"<<zAxis<<endl;
 			//printf("test");
 
-			SmartDashboard::PutNumber("Fwd/Rev MotorOutput", oldMotorValueMove);
-			SmartDashboard::PutNumber("Rotate MotorOutput", oldMotorValueRotate);
-			SmartDashboard::PutNumber("X Axis", xAxis);
-			SmartDashboard::PutNumber("Y Axis", yAxis);
-			SmartDashboard::PutNumber("Z Axis", zAxis);
+			SmartDashboard::PutNumber("Fwd/Rev MotorOutput", oldMotorValueMove);//Write forward motor value to the dashboard
+			SmartDashboard::PutNumber("Rotate MotorOutput", oldMotorValueRotate);//Write rotational motor value to the dashboard
+			SmartDashboard::PutNumber("X Axis", xAxis);//Write x-axis acceleration to the dashboard
+			SmartDashboard::PutNumber("Y Axis", yAxis);//Write y-axis acceleration to the dashboard
+			SmartDashboard::PutNumber("Z Axis", zAxis);//Write z-axis acceleration to the dashboard
 
 			Wait(0.01);				// wait for a motor update time
 		}
