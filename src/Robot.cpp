@@ -1,4 +1,5 @@
 #include "WPILib.h"
+#include "Math.h"
 using namespace std;
 
 /**
@@ -20,6 +21,7 @@ class Robot: public SampleRobot
 	CANTalon Three;
 	RobotDrive myRobot; // robot drive system
 	Joystick driverJoystick; // driver's XBox controller
+	Joystick arduino;
 	Solenoid hands;//first stage of climbing mechanism
 	Solenoid arms;//solenoid used to engage the PTO for second stage of climb
 	Solenoid shifter;//duh
@@ -38,9 +40,10 @@ public:
 			Three(3),
 			myRobot(Zero, One, Two, Three),	// initialize the RobotDrive to use the SRXs
 			driverJoystick(0),
-			hands(0),
-			arms(1),
-			shifter(2),
+			arduino(1),
+			hands(2),
+			arms(0),
+			shifter(1),
 			roboRIO()//only one, so no initalizing needed
 
 
@@ -64,24 +67,31 @@ public:
 		float xAxis;//acceleration(in g's) of the X Axis of the RoboRIO's onboard accelerometer
 		float yAxis;//acceleration(in g's) of the Y Axis of the RoboRIO's onboard accelerometer
 		float zAxis;//acceleration(in g's) of the Z Axis of the RoboRIO's onboard accelerometer
-
+		bool checkB3;//stores the value of button 3 from the previous iteration
+		bool b3Good;//the state of b3 changed from not pressed to pressed
+		bool b3;//button 3
 
 		while (IsOperatorControl() && IsEnabled())
 		{
 
+			double temp2 = arduino.GetRawAxis(2);
+			double temp3 = arduino.GetRawAxis(3);
+			double temp4 = arduino.GetRawAxis(4);
+
+
 			float newMotorValueMove=driverJoystick.GetRawAxis(1);//Makes it go forward
 			float newMotorValueRotate=driverJoystick.GetRawAxis(4);// Rotates the robot
+			b3 = driverJoystick.GetRawButton(3);//store the state of button 3
 
 
 			loopcounter += 1;// This loop changes the speed
-			if (loopcounter >= 3) {
-
-
-				float limiter=.05;// Maximum change in speed
+			if (loopcounter >= 3)
+			{
+				float limiter=.1;// Maximum change in speed
 
 				if(newMotorValueMove>oldMotorValueMove) //trying to move forward
 				{
-					if (newMotorValueMove-oldMotorValueMove>limiter)// Change higher then the limiter
+					if (fabs(newMotorValueMove-oldMotorValueMove)>limiter)// Change higher then the limiter
 					{
 						newMotorValueMove=oldMotorValueMove+limiter; //set change to limit
 					}
@@ -89,7 +99,7 @@ public:
 				}
 				else if (newMotorValueMove<oldMotorValueMove) //Trying to slow down
 				{
-					if (oldMotorValueMove-newMotorValueMove>limiter)//Change greater then limiter
+					if (fabs(oldMotorValueMove-newMotorValueMove)>limiter)//Change greater then limiter
 					{
 						newMotorValueMove=oldMotorValueMove-limiter;//Set change to limiter
 					}
@@ -97,14 +107,14 @@ public:
 
 				if (newMotorValueRotate>oldMotorValueRotate)//Trying to rotate
 				{
-					if (newMotorValueRotate-oldMotorValueRotate>limiter)//Change greater then limiter
+					if (fabs(newMotorValueRotate-oldMotorValueRotate)>limiter)//Change greater then limiter
 					{
 						newMotorValueRotate=oldMotorValueRotate+limiter;//Set change to limiter
 					}
 				}
 				else if (newMotorValueRotate<oldMotorValueRotate)//Trying to rotate
 				{
-					if (oldMotorValueRotate-newMotorValueRotate>limiter)//Change greater then limiter
+					if (fabs(oldMotorValueRotate-newMotorValueRotate)>limiter)//Change greater then limiter
 					{
 						newMotorValueRotate=oldMotorValueRotate-limiter;//Set change to limiter
 					}
@@ -132,54 +142,39 @@ public:
 			hands.Set(driverJoystick.GetRawButton(1));//Extend hands when button 1 is pressed
 			shifter.Set(driverJoystick.GetRawButton(6));//Shift when button 6 is pressed
 
-			if(driverJoystick.GetRawButton(5)&&driverJoystick.GetRawButton(3))//Check if button 5 and 3 is pressed
+			if((b3 == 1)&& (b3 != checkB3))//button 3 has changed from not pressed to pressed
 			{
-				armCheck = 1;//Setting value to compare against
+				b3Good = 1;
 			}
 			else
 			{
-				armCheck = 0;//Setting value to compare against
+				b3Good = 0;
 			}
 
-			if((armCheck == 1)&&(armCheck != armPrevious))//Transition of arm press from not pressed to pressed
+			if(driverJoystick.GetRawButton(5)&&b3Good)//Check if button 5 and 3 is pressed
 			{
 				armState = ! armState;//Change state of arm (In to out/out to in)
 			}
 
 			arms.Set(armState);//Engage or disengage the arms
-//
-//			xAxis = roboRIO.GetX();
-//			yAxis = roboRIO.GetY();
-//			zAxis = roboRIO.GetZ();
-//
-//			if(xAxis>=xAxisMax)
-//			{
-//				xAxisMax = xAxis;
-//			}
-//			if(xAxis<=xAxisMax)
-//			{
-//				xAxisMin = xAxis;
-//			}
-//
-//			if(xAxisMax >= !xAxisMin)
-//			{
-//				xAxisScaler = (1/xAxisMax) ;
-//			}
-//			else
-//			{
-//				xAxisScaler = (1/!xAxisMin);
-//			}
 
-			//test.Set((xAxisScaler*xAxis));
-
-			//cout<<"X Axis"<<xAxis<<"    Y Axis"<<yAxis<<"      Z Axis"<<zAxis<<endl;
-			//printf("test");
+			xAxis = roboRIO.GetX();
+			yAxis = roboRIO.GetY();
+			zAxis = roboRIO.GetZ();
 
 			SmartDashboard::PutNumber("Fwd/Rev MotorOutput", oldMotorValueMove);//Write forward motor value to the dashboard
 			SmartDashboard::PutNumber("Rotate MotorOutput", oldMotorValueRotate);//Write rotational motor value to the dashboard
 			SmartDashboard::PutNumber("X Axis", xAxis);//Write x-axis acceleration to the dashboard
 			SmartDashboard::PutNumber("Y Axis", yAxis);//Write y-axis acceleration to the dashboard
 			SmartDashboard::PutNumber("Z Axis", zAxis);//Write z-axis acceleration to the dashboard
+
+			SmartDashboard::PutNumber("Arduino 1", temp1);
+			SmartDashboard::PutNumber("Arduino 2", temp2);
+			SmartDashboard::PutNumber("Arduino 3", temp3);
+			SmartDashboard::PutNumber("Arduino 4", temp4);
+			SmartDashboard::PutNumber("Arduino 5", temp5);
+
+			checkB3 = b3;
 
 			Wait(0.01);				// wait for a motor update time
 		}
